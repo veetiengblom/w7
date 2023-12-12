@@ -59,6 +59,7 @@ router.post("/api/user/login", (req, res, next) => {
       if (err) throw err;
       if (isMatch) {
         req.session.user = userFound;
+        console.log("User logged in");
         return res.status(200).send();
       } else {
         return res.status(401).json({ msg: "Invalid password" });
