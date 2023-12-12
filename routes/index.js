@@ -2,6 +2,7 @@ var express = require("express");
 var router = express.Router();
 const bcrypt = require("bcrypt");
 const { body, validationResult } = require("express-validator");
+const session = require("express-session");
 
 const userList = [];
 
@@ -36,7 +37,7 @@ router.post(
             const userData = {
               username: username,
               password: hash,
-              id: Date.now().toString(36) + Math.random().toString(36),
+              id: Date.now().toString(),
             };
             userList.push(userData);
             return res.send(userData);
@@ -49,6 +50,23 @@ router.post(
 
 router.get("/api/user/list", (req, res, next) => {
   res.send(userList);
+});
+
+router.post("/api/user/login", (req, res, next) => {
+  const userFound = userList.find((user) => user.username == req.body.username);
+  if (userFound) {
+    bcrypt.compare(req.body.password, user.password, (err, isMatch) => {
+      if (err) throw err;
+      if (isMatch) {
+        req.session.user = userFound;
+        return res.status(200).send();
+      } else {
+        return res.status(401).json({ msg: "Invalid password" });
+      }
+    });
+  } else {
+    res.status(401).json({ msg: "Failed to login" });
+  }
 });
 
 module.exports = router;
