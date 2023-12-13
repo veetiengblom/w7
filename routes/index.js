@@ -5,6 +5,7 @@ const { body, validationResult } = require("express-validator");
 const session = require("express-session");
 
 const userList = [];
+const todoList = [];
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
@@ -19,6 +20,11 @@ router.post(
     let userfound = 0;
     const username = req.body.username;
     const password = req.body.password;
+
+    if (req.session.user == username) {
+      return res.redirect("/");
+    }
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -54,21 +60,88 @@ router.get("/api/user/list", (req, res, next) => {
 
 router.post("/api/user/login", (req, res, next) => {
   const userFound = userList.find((user) => user.username == req.body.username);
+
   if (userFound) {
-    bcrypt.compare(req.body.password, user.password, (err, isMatch) => {
+    if (req.session.user == userFound.username) {
+      return res.redirect("/");
+    }
+    bcrypt.compare(req.body.password, userFound.password, (err, isMatch) => {
       if (err) throw err;
       if (isMatch) {
-        req.session.user = userFound;
-        console.log("User logged in");
-        return res.status(200).send();
+        req.session.user = userFound.username;
+        return res.status(200).send("ok");
       } else {
-        console.log("Log in failed");
-        return res.status(401).json({ msg: "Invalid password" });
+        return res.status(401).json({ msg: "Failed to login" });
       }
     });
   } else {
     res.status(401).json({ msg: "Failed to login" });
   }
+});
+
+router.get("/api/secret", (req, res, next) => {
+  if (req.session.user) {
+    console.log("This is the user session: " + req.session.user);
+    return res.status(200).send("ok");
+  } else {
+    return res.status(401).json({ msg: "Unauthorized" });
+  }
+});
+
+router.post("/api/todos", (req, res, next) => {
+  if (req.session.user) {
+    const todo = req.body.todo;
+    const userId = req.session.user.id;
+    const userFound = todoList.find((user) => user.id === userId);
+    console.log("Todo: " + todo);
+    console.log("userfound: " + userFound);
+
+    if (userFound) {
+      userFound.todos.push(todo);
+      return res.json(userFound);
+    } else {
+      const newUser = {
+        id: userId,
+        todos: [todo],
+      };
+      todoList.push(newUser);
+      return res.json(newUser);
+    }
+
+    /*
+    let i = 0;
+    for (i; i < todoList.length; i++) {
+      if (todoList[i]["id"] == req.session.id) {
+        todoList[i].push(todo);
+      }
+    }
+    if (i == todoList.length) {
+      const obj = {
+        id: req.session.id,
+        todos: [todo],
+      };
+      todoList.push(obj);
+    }
+    return res.json(todoList[i]);
+    */
+    /*
+    if(userFound) {
+
+      
+    } else {
+      const obj = {
+        id: req.session.id,
+        todos: [todo]
+      }
+      todoList.push(obj)
+    }*/
+  } else {
+    return res.status(401).json({ msg: "Unauthorized" });
+  }
+});
+
+router.get("/api/todos/list", (req, res, next) => {
+  res.send(todoList);
 });
 
 module.exports = router;
