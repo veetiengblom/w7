@@ -62,6 +62,7 @@ router.post("/api/user/login", (req, res, next) => {
         console.log("User logged in");
         return res.status(200).send();
       } else {
+        console.log("Log in failed");
         return res.status(401).json({ msg: "Invalid password" });
       }
     });
