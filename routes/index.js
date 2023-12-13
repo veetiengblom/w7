@@ -41,9 +41,9 @@ router.post(
           bcrypt.hash(password, salt, (err, hash) => {
             if (err) throw err;
             const userData = {
+              id: Date.now().toString(),
               username: username,
               password: hash,
-              id: Date.now().toString(),
             };
             userList.push(userData);
             return res.send(userData);
@@ -69,6 +69,10 @@ router.post("/api/user/login", (req, res, next) => {
       if (err) throw err;
       if (isMatch) {
         req.session.user = userFound.username;
+        console.log("Req.session.user:" + req.session.user);
+        console.log("id?: " + req.session.user.id);
+        console.log("username?: " + req.session.user.username);
+        console.log("password?: " + req.session.user.password);
         return res.status(200).send("ok");
       } else {
         return res.status(401).json({ msg: "Failed to login" });
@@ -91,50 +95,22 @@ router.get("/api/secret", (req, res, next) => {
 router.post("/api/todos", (req, res, next) => {
   if (req.session.user) {
     const todo = req.body.todo;
-    const userId = req.session.user.id;
-    const userFound = todoList.find((user) => user.id === userId);
-    console.log("Todo: " + todo);
-    console.log("userfound: " + userFound);
+    const user = userList.find((user) => req.session.user == user.username);
+    const userFound = todoList.find((list) => list.id === user.id);
 
     if (userFound) {
+      console.log("user has todos");
       userFound.todos.push(todo);
       return res.json(userFound);
     } else {
+      console.log("User does not have todos");
       const newUser = {
-        id: userId,
+        id: user.id,
         todos: [todo],
       };
       todoList.push(newUser);
       return res.json(newUser);
     }
-
-    /*
-    let i = 0;
-    for (i; i < todoList.length; i++) {
-      if (todoList[i]["id"] == req.session.id) {
-        todoList[i].push(todo);
-      }
-    }
-    if (i == todoList.length) {
-      const obj = {
-        id: req.session.id,
-        todos: [todo],
-      };
-      todoList.push(obj);
-    }
-    return res.json(todoList[i]);
-    */
-    /*
-    if(userFound) {
-
-      
-    } else {
-      const obj = {
-        id: req.session.id,
-        todos: [todo]
-      }
-      todoList.push(obj)
-    }*/
   } else {
     return res.status(401).json({ msg: "Unauthorized" });
   }
