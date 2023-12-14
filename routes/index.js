@@ -3,9 +3,11 @@ var router = express.Router();
 const bcrypt = require("bcrypt");
 const { body, validationResult } = require("express-validator");
 const session = require("express-session");
+const users = require("../user-data");
 
-const userList = [];
-const todoList = [];
+const passport = require("../passport-config");
+
+const todosList = [];
 
 /* GET home page. */
 router.get("/", function (req, res, next) {
@@ -17,6 +19,33 @@ router.post(
   body("username").isLength({ min: 3 }).trim().escape(),
   body("password").isLength({ min: 5 }),
   (req, res, next) => {
+    const { username, password } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    } else {
+      // Check if username is already taken
+      if (users.some((user) => user.username === username)) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      // Hash the password
+      const hashedPassword = bcrypt.hashSync(password, 10);
+
+      // Create user object
+      const user = {
+        id: Date.now().toString(),
+        username: username,
+        password: hashedPassword,
+      };
+
+      // Save user
+      users.push(user);
+
+      // Respond with the created user object
+      res.json(user);
+    }
+    /*
     let userfound = 0;
     const username = req.body.username;
     const password = req.body.password;
@@ -51,6 +80,7 @@ router.post(
         });
       }
     }
+    */
   }
 );
 
@@ -58,6 +88,27 @@ router.get("/api/user/list", (req, res, next) => {
   res.send(userList);
 });
 
+router.post("/api/user/login", (req, res, next) => {
+  passport.authenticate("local", (err, user, info) => {
+    if (err) {
+      return next(err);
+    }
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
+
+    req.logIn(user, (err) => {
+      if (err) {
+        return next(err);
+      }
+
+      // Successful login, send session cookie
+      res.sendStatus(200);
+    });
+  })(req, res, next);
+});
+/*
 router.post("/api/user/login", (req, res, next) => {
   const userFound = userList.find((user) => user.username == req.body.username);
 
@@ -69,10 +120,6 @@ router.post("/api/user/login", (req, res, next) => {
       if (err) throw err;
       if (isMatch) {
         req.session.user = userFound.username;
-        console.log("Req.session.user:" + req.session.user);
-        console.log("id?: " + req.session.user.id);
-        console.log("username?: " + req.session.user.username);
-        console.log("password?: " + req.session.user.password);
         return res.status(200).send("ok");
       } else {
         return res.status(401).json({ msg: "Failed to login" });
@@ -115,9 +162,40 @@ router.post("/api/todos", (req, res, next) => {
     return res.status(401).json({ msg: "Unauthorized" });
   }
 });
+*/
+router.get("/api/secret", isAuthenticated, (req, res) => {
+  res.sendStatus(200);
+});
+
+// Login redirection middleware
+function isAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect("/");
+}
+
+router.post("/api/todos", isAuthenticated, (req, res) => {
+  const userId = req.user.id;
+  const { todo } = req.body;
+
+  // Find user's todos
+  let userTodos = todosList.find((t) => t.id === userId);
+  // If user has no todos yet, create a new entry
+  if (!userTodos) {
+    userTodos = { id: userId, todos: [] };
+    todosList.push({ id: userId, todos: [todo] });
+  }
+
+  // Add todo to existing user's todos
+  userTodos.todos.push(todo);
+
+  // Respond with the user's todo object
+  res.json({ id: userId, todos: userTodos.todos });
+});
 
 router.get("/api/todos/list", (req, res, next) => {
-  res.send(todoList);
+  res.send(todosList);
 });
 
 module.exports = router;
