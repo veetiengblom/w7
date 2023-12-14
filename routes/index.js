@@ -3,9 +3,9 @@ var router = express.Router();
 const bcrypt = require("bcrypt");
 const { body, validationResult } = require("express-validator");
 const session = require("express-session");
-const users = require("../user-data");
+const users = require("./user-data");
 
-const passport = require("../passport-config");
+const passport = require("./passport-config");
 
 const todosList = [];
 
