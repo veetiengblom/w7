@@ -1,3 +1,132 @@
+const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcrypt");
+const { body, validationResult } = require("express-validator");
+const session = require("express-session");
+
+const users = [];
+const todoList = [];
+
+const validateRegistration = [
+  body("username").isLength({ min: 3 }).trim().escape(),
+  body("password").isLength({ min: 3 }),
+];
+
+const validateLogin = [
+  body("username").isLength({ min: 3 }).trim().escape(),
+  body("password").isLength({ min: 3 }),
+];
+
+// GET home page
+router.get("/", (req, res) => {
+  res.render("index", { title: "Express" });
+});
+
+// User registration
+router.post("/api/user/register", validateRegistration, (req, res) => {
+  try {
+    if (req.session.user) {
+      return res.redirect("/");
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const isUsernameTaken = users.some(
+      (user) => user.username === req.body.username
+    );
+    if (isUsernameTaken) {
+      return res.status(400).json({ username: "Username already in use." });
+    }
+
+    bcrypt.genSalt(10, (err, salt) => {
+      if (err) throw err;
+
+      bcrypt.hash(req.body.password, salt, (err, hash) => {
+        if (err) throw err;
+
+        const newUser = {
+          id: Date.now().toString(),
+          username: req.body.username,
+          password: hash,
+        };
+
+        users.push(newUser);
+        console.log(users);
+        return res.status(200).json(newUser);
+      });
+    });
+  } catch {}
+});
+
+// Get list of registered users
+router.get("/api/user/list", (req, res) => {
+  res.json(users);
+});
+
+// User login
+router.post("/api/user/login", validateLogin, (req, res) => {
+  if (req.session.user) {
+    return res.redirect("/");
+  }
+
+  const { username, password } = req.body;
+  const user = users.find((user) => user.username === username);
+
+  if (!user) {
+    return res.status(401).json({ message: "Invalid username or passwor" });
+  }
+
+  bcrypt.compare(password, user.password, (err, isMatch) => {
+    if (err) {
+      throw err;
+    }
+
+    if (isMatch) {
+      req.session.user = user;
+      return res.status(200).send();
+    } else {
+      return res.status(401).json({ message: "Invalid username or passwor" });
+    }
+  });
+});
+
+// Secret route
+router.get("/api/secret", (req, res) => {
+  if (req.session.user) {
+    res.status(200).send();
+  } else {
+    res.status(401).json({ message: "Unauthorized" });
+  }
+});
+
+// Add todo
+router.post("/api/todos", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  let userFound = todoList.find((list) => list.id === req.session.user.id);
+  if (!userFound) {
+    userFound = { id: req.session.user.id, todos: [] };
+    todoList.push(userFound);
+  }
+
+  userFound.todos.push(req.body.todo);
+
+  res.json(userFound);
+});
+
+// Get list of todos
+router.get("/api/todos/list", (req, res) => {
+  res.json(todoList);
+});
+
+module.exports = router;
+
+/*
 var express = require("express");
 var router = express.Router();
 const bcrypt = require("bcrypt");
@@ -8,8 +137,9 @@ const users = require("./user-data");
 const passport = require("./passport-config");
 
 const todosList = [];
-
+*/
 /* GET home page. */
+/*
 router.get("/", function (req, res, next) {
   res.render("index", { title: "Express" });
 });
@@ -45,7 +175,7 @@ router.post(
       // Respond with the created user object
       res.json(user);
     }
-    /*
+    
     let userfound = 0;
     const username = req.body.username;
     const password = req.body.password;
@@ -80,7 +210,7 @@ router.post(
         });
       }
     }
-    */
+    
   }
 );
 
@@ -108,7 +238,7 @@ router.post("/api/user/login", (req, res, next) => {
     });
   })(req, res, next);
 });
-/*
+
 router.post("/api/user/login", (req, res, next) => {
   const userFound = userList.find((user) => user.username == req.body.username);
 
@@ -162,7 +292,7 @@ router.post("/api/todos", (req, res, next) => {
     return res.status(401).json({ msg: "Unauthorized" });
   }
 });
-*/
+
 router.get("/api/secret", isAuthenticated, (req, res) => {
   res.sendStatus(200);
 });
@@ -199,3 +329,4 @@ router.get("/api/todos/list", (req, res, next) => {
 });
 
 module.exports = router;
+*/
